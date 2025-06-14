@@ -6,7 +6,7 @@ namespace TodoApi.Features.Todos;
 
 public static class ListTodoLists
 {
-    public class Endpoint : EndpointWithoutRequest<ListTodoLists.Response>
+    public class Endpoint : EndpointWithoutRequest<Response>
     {
         public override void Configure()
         {
@@ -23,7 +23,7 @@ public static class ListTodoLists
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            var response = await new ListTodoLists.Command().ExecuteAsync(ct);
+            var response = await new Command().ExecuteAsync(ct);
             await SendOkAsync(response, ct);
         }
     }

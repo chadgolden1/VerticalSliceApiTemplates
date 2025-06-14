@@ -1,4 +1,6 @@
+using FastEndpoints;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Shared;
@@ -14,12 +16,17 @@ builder.Services.AddSwaggerGen(options =>
     {
         if (api.GroupName != null)
         {
-            return new[] { api.GroupName };
+            return [api.GroupName];
         }
 
         if (api.ActionDescriptor is ControllerActionDescriptor controllerActionDescriptor)
         {
-            return new[] { controllerActionDescriptor.ControllerName };
+            return [controllerActionDescriptor.ControllerName];
+        }
+
+        if (api.ActionDescriptor is ActionDescriptor actionDescriptor)
+        {
+            return [actionDescriptor.DisplayName];
         }
 
         throw new InvalidOperationException("Unable to determine tag for endpoint.");
@@ -43,6 +50,8 @@ builder.Services.AddMediatR(cfg =>
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+builder.Services.AddFastEndpoints();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -54,6 +63,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapControllers();
+app.UseFastEndpoints();
 
 app.UseMiddleware<ValidationMiddleware>();
 

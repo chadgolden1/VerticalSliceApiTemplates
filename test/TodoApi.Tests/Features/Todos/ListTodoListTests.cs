@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Shouldly;
 using TodoApi.Features.Todos;
 
@@ -38,8 +39,12 @@ public class ListTodoListTests(SliceFixture sliceFixture)
             ]
         });
 
-        var todoListsResponse = await sliceFixture.SendAsync(new ListTodoLists.Query());
+        var response = await sliceFixture.Client.GetAsync("/api/todos/list");
+        response.EnsureSuccessStatusCode();
+        
+        var todoListsResponse = await response.Content.ReadFromJsonAsync<ListTodoLists.Response>();
 
+        todoListsResponse.ShouldNotBeNull();
         todoListsResponse.TodoLists.ShouldNotBeEmpty();
         todoListsResponse.TodoLists.First(x => x.Name == todoListName).Todos.ShouldContain(x => x.Name == todoName && x.Description == todoDescription);
         todoListsResponse.TodoLists.First(x => x.Name == todoListName2).Todos.ShouldContain(x => x.Name == todoName2 && x.Description == todoDescription2);

@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Shouldly;
 using TodoApi.Features.Todos;
 
@@ -13,7 +14,7 @@ public class ListTodoListTests(SliceFixture sliceFixture)
         string todoName = SampleName();
         string todoDescription = SampleDescription();
 
-        var todoListId = await sliceFixture.SendAsync(new CreateTodoList.Command
+        var createResponse1 = await sliceFixture.Client.PostAsJsonAsync("/api/todos/list", new CreateTodoList.Command
         {
             Name = todoListName,
             Todos =
@@ -21,6 +22,7 @@ public class ListTodoListTests(SliceFixture sliceFixture)
                 new() { Name = todoName, Description = todoDescription }
             ]
         });
+        createResponse1.EnsureSuccessStatusCode();
 
         string todoListName2 = SampleName();
         string todoName2 = SampleName();
@@ -28,7 +30,7 @@ public class ListTodoListTests(SliceFixture sliceFixture)
         string todoName3 = SampleName();
         string todoDescription3 = SampleDescription();
 
-        var todoListId2 = await sliceFixture.SendAsync(new CreateTodoList.Command
+        var createResponse2 = await sliceFixture.Client.PostAsJsonAsync("/api/todos/list", new CreateTodoList.Command
         {
             Name = todoListName2,
             Todos =
@@ -37,9 +39,14 @@ public class ListTodoListTests(SliceFixture sliceFixture)
                 new() { Name = todoName3, Description = todoDescription3 },
             ]
         });
+        createResponse2.EnsureSuccessStatusCode();
 
-        var todoListsResponse = await sliceFixture.SendAsync(new ListTodoLists.Query());
+        var response = await sliceFixture.Client.GetAsync("/api/todos/list");
+        response.EnsureSuccessStatusCode();
 
+        var todoListsResponse = await response.Content.ReadFromJsonAsync<ListTodoLists.Response>();
+
+        todoListsResponse.ShouldNotBeNull();
         todoListsResponse.TodoLists.ShouldNotBeEmpty();
         todoListsResponse.TodoLists.First(x => x.Name == todoListName).Todos.ShouldContain(x => x.Name == todoName && x.Description == todoDescription);
         todoListsResponse.TodoLists.First(x => x.Name == todoListName2).Todos.ShouldContain(x => x.Name == todoName2 && x.Description == todoDescription2);

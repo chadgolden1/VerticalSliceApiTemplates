@@ -17,16 +17,15 @@ Because each feature is organized this way, each feature in the system can decid
 Using this approach, we'll find that we *minimize* coupling *between* features, but *maximize* the coupling *within* a feature. Sharing code becomes a purposeful decision instead of the default. You may also find that this simplifies project structure. For example, with a simple API, we may only need to create a single .NET project or assembly and separate things out by folder structure and namespace, as opposed to creating a .NET project per horizontal layer.
 
 ## Technologies showcased
-* ASP.NET Core Web API w/ Swagger documentation
 * Vertical slice architecture
+* FastEndpoints + REPR pattern + Swagger + FluentValidation
 * Entity Framework Core (SQL Server)
-* FluentValidation
-* Integration tests using xUnit
+* Integration tests
 
 ## Getting started
 To work with this project, you need:
-* .NET 8+ SDK
-* PowerShell (version 7+ is recommended in cross-platform scenarios)
+* .NET SDK
+* PowerShell 7+
 
 ### How to run
 To run the project, you can set the `TodoApi` as your start-up project in Visual Studio 2022 17.8+ and go, or use the `dotnet` CLI:

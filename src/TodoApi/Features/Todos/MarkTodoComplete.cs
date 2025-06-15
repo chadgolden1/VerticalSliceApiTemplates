@@ -1,53 +1,68 @@
-using System.Net;
-using FluentValidation;
-using MediatR;
-using Microsoft.AspNetCore.Mvc;
+using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Shared.Data;
 
 namespace TodoApi.Features.Todos;
 
-[ApiController]
-[ApiExplorerSettings(GroupName = "Todo")]
-public class MarkTodoCompleteController(IMediator mediator) : ControllerBase
+public static class MarkTodoComplete
 {
-    [HttpPut("/api/todos/todo/{todoId:int}/mark-complete")]
-    [ProducesResponseType(((int)HttpStatusCode.OK))]
-    [ProducesResponseType(((int)HttpStatusCode.BadRequest))]
-    public async Task<IActionResult> MarkTodoComplete(int todoId)
+    public class Endpoint : EndpointWithoutRequest
     {
-        await mediator.Send(new MarkTodoComplete.Command { TodoId = todoId });
-        return Ok();
-    }
-}
+        public override void Configure()
+        {
+            Put("/{todoId:int}/mark-complete");
+            Group<TodoEndpointGroup>();
+            Description(builder =>
+            {
+                builder
+                    .WithSummary("Mark todo as complete")
+                    .WithDescription("Marks a specific todo item as completed")
+                    .Produces(404);
+            });
+        }
 
-public class MarkTodoComplete
-{
-    public record Command : IRequest
+        public override async Task HandleAsync(CancellationToken ct)
+        {
+            var command = new Command
+            {
+                TodoId = Route<int>("todoId")
+            };
+
+            var response = await command.ExecuteAsync(ct);
+
+            if (!response.Exists)
+            {
+                await SendNotFoundAsync(ct);
+                return;
+            }
+
+            await SendOkAsync(ct);
+        }
+    }
+
+    public class Handler(TodoContext context) : CommandHandler<Command, Response>
+    {
+        public override async Task<Response> ExecuteAsync(Command command, CancellationToken ct = default)
+        {
+            var todo = await context.Todos.FirstOrDefaultAsync(x => x.TodoId == command.TodoId, ct);
+
+            if (todo is null)
+            {
+                return new Response(false);
+            }
+
+            todo.IsComplete = true;
+
+            await context.SaveChangesAsync(ct);
+
+            return new Response(true);
+        }
+    }
+
+    public class Command : ICommand<Response>
     {
         public int TodoId { get; init; }
     }
 
-    public class Validator : AbstractValidator<Command>
-    {
-        public Validator(TodoContext context)
-        {
-            RuleFor(x => x.TodoId).MustAsync(async (todoId, cancellationToken) =>
-            {
-                return await context.Todos.AnyAsync(x => x.TodoId == todoId, cancellationToken);
-            }).WithMessage("Todo could not found");
-        }
-    }
-
-    public class Handler(TodoContext context) : IRequestHandler<Command>
-    {
-        public async Task Handle(Command request, CancellationToken cancellationToken)
-        {
-            var todo = await context.Todos.FirstAsync(x => x.TodoId == request.TodoId, cancellationToken);
-
-            todo.IsComplete = true;
-
-            await context.SaveChangesAsync(CancellationToken.None);
-        }
-    }
+    public record Response(bool Exists);
 }

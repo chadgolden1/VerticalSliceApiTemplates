@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -115,20 +114,6 @@ public class SliceFixture : IAsyncLifetime
     public Task<T?> FindAsync<T>(int id)
         where T : class
         => ExecuteDbContextAsync(db => db.Set<T>().FindAsync(id).AsTask());
-
-    public Task<TResponse> SendAsync<TResponse>(IRequest<TResponse> request) =>
-        ExecuteScopeAsync(sp =>
-        {
-            IMediator mediator = sp.GetRequiredService<IMediator>();
-            return mediator.Send(request);
-        });
-
-    public Task SendAsync(IRequest request) =>
-        ExecuteScopeAsync(sp =>
-        {
-            IMediator mediator = sp.GetRequiredService<IMediator>();
-            return mediator.Send(request);
-        });
 
     public async Task InitializeAsync()
     {

@@ -1,66 +1,53 @@
-using System.Net;
-using MediatR;
+using FastEndpoints;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Shared.Data;
 
 namespace TodoApi.Features.Todos;
 
-[ApiController]
-[ApiExplorerSettings(GroupName = "TodoList")]
-public class GetTodoListController(IMediator mediator) : ControllerBase
+public static class GetTodoList
 {
-    [HttpGet("/api/todos/list/{todoListId:int}")]
-    [ProducesResponseType(((int)HttpStatusCode.OK))]
-    [ProducesResponseType(((int)HttpStatusCode.NotFound))]
-    public async Task<IActionResult> Get(int todoListId, CancellationToken cancellationToken)
+    public class Endpoint : Endpoint<Command, Response>
     {
-        var response = await mediator.Send(new GetTodoList.Query { TodoListId = todoListId }, cancellationToken);
-        return response.TodoList switch
+        public override void Configure()
         {
-            null => NotFound(),
-            _ => Ok()
-        };
-    }
-}
-
-public class GetTodoList
-{
-    public record Query : IRequest<Response>
-    {
-        public int TodoListId { get; init; }
-    }
-
-    public record Response
-    {
-        public TodoListDto? TodoList { get; init; }
-
-        public class TodoListDto
-        {
-            public string Name { get; init; } = string.Empty;
-            public List<TodoDto> Todos { get; init; } = [];
+            Get("/{todoListId}");
+            Group<TodoListEndpointGroup>();
+            Description(builder =>
+            {
+                builder
+                    .WithSummary("Get a specific todo list")
+                    .WithDescription("Returns a todo list with all its todos by ID")
+                    .Produces(404);
+            });
         }
 
-        public class TodoDto
+        public override async Task HandleAsync(Command command, CancellationToken ct)
         {
-            public int TodoId { get; init; }
-            public string Name { get; init; } = string.Empty;
-            public string? Description { get; init; }
-            public bool IsComplete { get; init; }
+            var response = await command.ExecuteAsync(ct);
+
+            if (response.TodoList == null)
+            {
+                await SendNotFoundAsync(ct);
+                return;
+            }
+
+            await SendOkAsync(response, ct);
         }
     }
 
-    public class Handler(TodoContext context) : IRequestHandler<Query, Response>
+    public class Handler(TodoContext context) : CommandHandler<Command, Response>
     {
-        public async Task<Response> Handle(Query request, CancellationToken cancellationToken)
+        public override async Task<Response> ExecuteAsync(Command command, CancellationToken ct = default)
         {
-            Response.TodoListDto? todoList = await context
+            TodoListDto? todoList = await context
                 .TodoLists
-                .Where(tl => tl.TodoListId == request.TodoListId)
-                .Select(tl => new Response.TodoListDto
+                .Where(tl => tl.TodoListId == command.TodoListId)
+                .Select(tl => new TodoListDto
                 {
+                    TodoListId = tl.TodoListId,
                     Name = tl.Name,
-                    Todos = tl.Todos.Select(t => new Response.TodoDto
+                    Todos = tl.Todos.Select(t => new TodoDto
                     {
                         TodoId = t.TodoId,
                         Name = t.Name,
@@ -68,12 +55,38 @@ public class GetTodoList
                         IsComplete = t.IsComplete
                     }).ToList()
                 })
-                .FirstOrDefaultAsync(cancellationToken);
+                .FirstOrDefaultAsync(ct);
 
             return new Response
             {
                 TodoList = todoList
             };
         }
+    }
+
+    public class Command : ICommand<Response>
+    {
+        [FromRoute]
+        public int TodoListId { get; init; }
+    }
+
+    public class Response
+    {
+        public TodoListDto? TodoList { get; init; }
+    }
+
+    public class TodoListDto
+    {
+        public int TodoListId { get; set; }
+        public string Name { get; init; } = string.Empty;
+        public List<TodoDto> Todos { get; init; } = [];
+    }
+
+    public class TodoDto
+    {
+        public int TodoId { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public string? Description { get; init; }
+        public bool IsComplete { get; init; }
     }
 }

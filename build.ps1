@@ -2,6 +2,8 @@
 
 $artifacts = "./artifacts"
 $version = "0.0.0"
+$publishProject = "./src/TodoApi/TodoApi.csproj"
+$outputFolder = $($artifacts + "/TodoApi")
 
 Clean-Directory $artifacts
 
@@ -19,12 +21,4 @@ exec { & dotnet build -c Release --no-restore }
 
 exec { & dotnet test -c Release --no-build }
 
-exec {
-    $outputDirectory = $($artifacts + "/TodoApi")
-
-    & dotnet publish ./src/TodoApi/TodoApi.csproj `
-        -c Release `
-        --no-build `
-        --output $($artifacts + "/TodoApi") `
-        -p:Version=$version
-}
+exec { & dotnet publish $publishProject -c Release --no-build --output $outputFolder -p:Version=$version }

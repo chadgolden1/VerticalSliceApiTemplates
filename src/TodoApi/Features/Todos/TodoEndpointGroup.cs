@@ -8,11 +8,13 @@ public class TodoEndpointGroup : Group
     {
         Configure("/api/todos", ep =>
         {
+            ep.AllowAnonymous();
             ep.Description(routeBuilder =>
             {
                 routeBuilder
                     .WithDisplayName("Todo")
-                    .WithName("Todo");
+                    .WithGroupName("Todo")
+                    .WithTags("Todo");
             });
         });
     }

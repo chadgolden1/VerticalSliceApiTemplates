@@ -1,4 +1,4 @@
-using FluentValidation;
+using System.Net.Http.Json;
 using Shouldly;
 using TodoApi.Features.Todos;
 
@@ -14,7 +14,7 @@ public class CreateTodoListTests(SliceFixture sliceFixture)
         string todoName = SampleName();
         string todoDescription = SampleDescription();
 
-        var todoListId = await sliceFixture.SendAsync(new CreateTodoList.Command
+        var createResponse = await sliceFixture.Client.PostAsJsonAsync("/api/todos/list", new CreateTodoList.Command
         {
             Name = todoListName,
             Todos =
@@ -22,49 +22,52 @@ public class CreateTodoListTests(SliceFixture sliceFixture)
                 new() { Name = todoName, Description = todoDescription }
             ]
         });
+        createResponse.EnsureSuccessStatusCode();
+        var createResult = await createResponse.Content.ReadFromJsonAsync<CreateTodoList.Response>();
+        var todoListId = createResult!.TodoListId;
 
-        var todoListsResponse = await sliceFixture.SendAsync(new GetTodoList.Query { TodoListId = todoListId });
+        var getResponse = await sliceFixture.Client.GetAsync($"/api/todos/list/{todoListId}");
+        getResponse.EnsureSuccessStatusCode();
+        var todoListsResponse = await getResponse.Content.ReadFromJsonAsync<GetTodoList.Response>();
 
-        var todoList = todoListsResponse.TodoList.ShouldNotBeNull();
+        var todoList = todoListsResponse!.TodoList.ShouldNotBeNull();
         todoList.Todos.ShouldContain(x => x.Name == todoName && x.Description == todoDescription);
     }
 
     [Fact]
     public async Task ShouldRejectEmptyTodoListName()
     {
-        var exception = await Should.ThrowAsync<ValidationException>(async () =>
+        var response = await sliceFixture.Client.PostAsJsonAsync("/api/todos/list", new CreateTodoList.Command
         {
-            await sliceFixture.SendAsync(new CreateTodoList.Command
-            {
-                Name = "",
-                Todos =
-                [
-                    new() { Name = SampleName(), Description = SampleDescription() }
-                ]
-            });
+            Name = "",
+            Todos =
+            [
+                new() { Name = SampleName(), Description = SampleDescription() }
+            ]
         });
 
-        exception.Message.ShouldContain("Name");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.BadRequest);
+        var content = await response.Content.ReadAsStringAsync();
+        content.ShouldContain("Name");
     }
 
     [Fact]
     public async Task ShouldRejectInvalidTodoFields()
     {
-        var exception = await Should.ThrowAsync<ValidationException>(async () =>
+        var response = await sliceFixture.Client.PostAsJsonAsync("/api/todos/list", new CreateTodoList.Command
         {
-            await sliceFixture.SendAsync(new CreateTodoList.Command
-            {
-                Name = SampleName(),
-                Todos =
-                [
-                    new() { Name = SampleName(), Description = new string('a', 8001) },
-                    new() { Name = "" },
-                ]
-            });
+            Name = SampleName(),
+            Todos =
+            [
+                new() { Name = SampleName(), Description = new string('a', 8001) },
+                new() { Name = "" },
+            ]
         });
 
-        exception.Message.ShouldContain("Name");
-        exception.Message.ShouldContain("Description");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.BadRequest);
+        var content = await response.Content.ReadAsStringAsync();
+        content.ShouldContain("Name");
+        content.ShouldContain("Description");
     }
 
 

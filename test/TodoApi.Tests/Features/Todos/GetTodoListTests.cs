@@ -1,5 +1,5 @@
+using System.Net;
 using Shouldly;
-using TodoApi.Features.Todos;
 
 namespace TodoApi.Tests.Features.Todos;
 
@@ -7,12 +7,12 @@ namespace TodoApi.Tests.Features.Todos;
 public class GetTodoListTests(SliceFixture sliceFixture)
 {
     [Fact]
-    public async Task ShouldReturnNullForTodoListThatDoesNotExist()
+    public async Task ShouldReturnNotFoundForTodoListThatDoesNotExist()
     {
         int todoListIdThatDoesNotExist = -23464;
 
-        var response = await sliceFixture.SendAsync(new GetTodoList.Query { TodoListId = todoListIdThatDoesNotExist });
+        var response = await sliceFixture.Client.GetAsync($"/api/todos/list/{todoListIdThatDoesNotExist}");
 
-        response.TodoList.ShouldBeNull();
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 }

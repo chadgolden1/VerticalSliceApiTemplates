@@ -25,13 +25,6 @@ exec {
     & dotnet publish ./src/TodoApi/TodoApi.csproj `
         -c Release `
         --no-build `
-        --output $outputDirectory `
+        --output $($artifacts + "/TodoApi") `
         -p:Version=$version
-
-    # Create artifact in nupkg format for tools such as Octopus Deploy or other package repositories requiring
-    # package metadata.
-    #
-    # For simpler artifact needs, such as a basic zip file without metadata, try:
-    #   Create-Zip-Artifact -basePath:$outputDirectory -outFolder:$artifacts -packageVersion:$version
-    Create-NuGet-Artifact -basePath:$outputDirectory -outFolder:$artifacts -packageVersion:$version -packageId:"TodoApi"
 }

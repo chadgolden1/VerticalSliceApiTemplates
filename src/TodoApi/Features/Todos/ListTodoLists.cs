@@ -10,14 +10,13 @@ public static class ListTodoLists
     {
         public override void Configure()
         {
-            Get("list");
-            AllowAnonymous();
-            Group<TodoEndpointGroup>();
-            Summary(s =>
+            Get("/");
+            Group<TodoListEndpointGroup>();
+            Description(builder =>
             {
-                s.Summary = "List all todo lists";
-                s.Description = "Returns all todo lists with their todos";
-                s.Responses[200] = "Todo lists retrieved successfully";
+                builder
+                    .WithSummary("List all todo lists")
+                    .WithDescription("Returns all todo lists with their todos");
             });
         }
 
@@ -38,9 +37,11 @@ public static class ListTodoLists
                     .OrderBy(tl => tl.TodoListId)
                     .Select(tl => new TodoListDto
                     {
+                        TodoListId = tl.TodoListId,
                         Name = tl.Name,
                         Todos = tl.Todos.Select(t => new TodoDto
                         {
+                            TodoId = t.TodoId,
                             Name = t.Name,
                             Description = t.Description
                         }).ToList()
@@ -61,12 +62,14 @@ public static class ListTodoLists
 
     public class TodoListDto
     {
+        public int TodoListId { get; init; }
         public string Name { get; init; } = string.Empty;
         public List<TodoDto> Todos { get; init; } = [];
     }
 
     public class TodoDto
     {
+        public int TodoId { get; init; }
         public string Name { get; init; } = string.Empty;
         public string? Description { get; init; }
     }

@@ -1,4 +1,4 @@
-using FluentValidation;
+using System.Net.Http.Json;
 using Shouldly;
 using TodoApi.Features.Todos;
 
@@ -14,16 +14,20 @@ public class CreateTodoTests(SliceFixture sliceFixture)
 
         string newTodoName = SampleName();
         string newTodoDescription = SampleDescription();
-        var todoId = await sliceFixture.SendAsync(new CreateTodo.Command
+
+        var createResponse = await sliceFixture.Client.PostAsJsonAsync("/api/todos", new CreateTodo.Command
         {
             TodoListId = todoListId,
             Name = newTodoName,
             Description = newTodoDescription
         });
+        createResponse.EnsureSuccessStatusCode();
 
-        var getResponse = await sliceFixture.SendAsync(new GetTodoList.Query { TodoListId = todoListId });
+        var getResponse = await sliceFixture.Client.GetAsync($"/api/todos/list/{todoListId}");
+        getResponse.EnsureSuccessStatusCode();
+        var getTodoListResponse = await getResponse.Content.ReadFromJsonAsync<GetTodoList.Response>();
 
-        var todoList = getResponse.TodoList.ShouldNotBeNull();
+        var todoList = getTodoListResponse!.TodoList.ShouldNotBeNull();
         todoList.Todos.Count.ShouldBe(2);
         todoList.Todos.First(x => x.Name == newTodoName).Description.ShouldBe(newTodoDescription);
     }
@@ -33,17 +37,16 @@ public class CreateTodoTests(SliceFixture sliceFixture)
     {
         int todoListId = await CreateTodoList();
 
-        var exception = await Should.ThrowAsync<ValidationException>(async () =>
+        var response = await sliceFixture.Client.PostAsJsonAsync("/api/todos", new CreateTodo.Command
         {
-            await sliceFixture.SendAsync(new CreateTodo.Command
-            {
-                TodoListId = todoListId,
-                Name = "",
-            });
+            TodoListId = todoListId,
+            Name = "",
         });
 
-        exception.Message.ShouldContain("Name");
-        exception.Message.ShouldNotContain("Description");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.BadRequest);
+        var content = await response.Content.ReadAsStringAsync();
+        content.ShouldContain("Name");
+        content.ShouldNotContain("Description");
     }
 
     [Fact]
@@ -51,34 +54,32 @@ public class CreateTodoTests(SliceFixture sliceFixture)
     {
         int todoListId = await CreateTodoList();
 
-        var exception = await Should.ThrowAsync<ValidationException>(async () =>
+        var response = await sliceFixture.Client.PostAsJsonAsync("/api/todos", new CreateTodo.Command
         {
-            await sliceFixture.SendAsync(new CreateTodo.Command
-            {
-                TodoListId = todoListId,
-                Name = new string('a', 101),
-                Description = new string('a', 8001)
-            });
+            TodoListId = todoListId,
+            Name = new string('a', 101),
+            Description = new string('a', 8001)
         });
 
-        exception.Message.ShouldContain("Name");
-        exception.Message.ShouldContain("Description");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.BadRequest);
+        var content = await response.Content.ReadAsStringAsync();
+        content.ShouldContain("Name");
+        content.ShouldContain("Description");
     }
 
     [Fact]
     public async Task ShouldRejectNonExistingTodoListId()
     {
-        var exception = await Should.ThrowAsync<ValidationException>(async () =>
+        var response = await sliceFixture.Client.PostAsJsonAsync("/api/todos", new CreateTodo.Command
         {
-            await sliceFixture.SendAsync(new CreateTodo.Command
-            {
-                TodoListId = -8236212,
-                Name = SampleName(),
-                Description = SampleDescription()
-            });
+            TodoListId = -8236212,
+            Name = SampleName(),
+            Description = SampleDescription()
         });
 
-        exception.Message.ShouldContain("does not exist");
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.BadRequest);
+        var content = await response.Content.ReadAsStringAsync();
+        content.ShouldContain("does not exist");
     }
 
     private static string SampleName() => SampleData.SampleString();
@@ -90,7 +91,7 @@ public class CreateTodoTests(SliceFixture sliceFixture)
         string todoName = SampleName();
         string todoDescription = SampleDescription();
 
-        return await sliceFixture.SendAsync(new CreateTodoList.Command
+        var response = await sliceFixture.Client.PostAsJsonAsync("/api/todos/list", new CreateTodoList.Command
         {
             Name = todoListName,
             Todos =
@@ -98,5 +99,8 @@ public class CreateTodoTests(SliceFixture sliceFixture)
                 new() { Name = todoName, Description = todoDescription }
             ]
         });
+        response.EnsureSuccessStatusCode();
+        var createResponse = await response.Content.ReadFromJsonAsync<CreateTodoList.Response>();
+        return createResponse!.TodoListId;
     }
 }

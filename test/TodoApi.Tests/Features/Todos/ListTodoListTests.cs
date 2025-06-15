@@ -14,7 +14,7 @@ public class ListTodoListTests(SliceFixture sliceFixture)
         string todoName = SampleName();
         string todoDescription = SampleDescription();
 
-        var todoListId = await sliceFixture.SendAsync(new CreateTodoList.Command
+        var createResponse1 = await sliceFixture.Client.PostAsJsonAsync("/api/todos/list", new CreateTodoList.Command
         {
             Name = todoListName,
             Todos =
@@ -22,6 +22,7 @@ public class ListTodoListTests(SliceFixture sliceFixture)
                 new() { Name = todoName, Description = todoDescription }
             ]
         });
+        createResponse1.EnsureSuccessStatusCode();
 
         string todoListName2 = SampleName();
         string todoName2 = SampleName();
@@ -29,7 +30,7 @@ public class ListTodoListTests(SliceFixture sliceFixture)
         string todoName3 = SampleName();
         string todoDescription3 = SampleDescription();
 
-        var todoListId2 = await sliceFixture.SendAsync(new CreateTodoList.Command
+        var createResponse2 = await sliceFixture.Client.PostAsJsonAsync("/api/todos/list", new CreateTodoList.Command
         {
             Name = todoListName2,
             Todos =
@@ -38,10 +39,11 @@ public class ListTodoListTests(SliceFixture sliceFixture)
                 new() { Name = todoName3, Description = todoDescription3 },
             ]
         });
+        createResponse2.EnsureSuccessStatusCode();
 
         var response = await sliceFixture.Client.GetAsync("/api/todos/list");
         response.EnsureSuccessStatusCode();
-        
+
         var todoListsResponse = await response.Content.ReadFromJsonAsync<ListTodoLists.Response>();
 
         todoListsResponse.ShouldNotBeNull();

@@ -5,13 +5,12 @@ using TodoApi.Shared.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddDbContext<TodoContext>(cfg =>
-{
-    cfg.UseSqlServer(builder.Configuration.GetConnectionString("Default"));
-});
+builder.AddSqlServerDbContext<TodoContext>("todo-db");
 
 builder.Services
     .AddFastEndpoints(o =>
@@ -30,6 +29,8 @@ builder.Services
 
 var app = builder.Build();
 
+app.MapDefaultEndpoints();
+
 app.UseHttpsRedirection();
 
 app.MapControllers();
@@ -40,8 +41,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerGen();
 }
 
-// apply pending migrations for local dev only
-if (app.Configuration.GetValue<bool>("LocalMigrations"))
+// Apply migrations when running in Aspire (detected by OTEL_SERVICE_NAME) or when LocalMigrations is true
+if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")) ||
+    app.Configuration.GetValue<bool>("LocalMigrations"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     var context = scope.ServiceProvider.GetRequiredService<TodoContext>();

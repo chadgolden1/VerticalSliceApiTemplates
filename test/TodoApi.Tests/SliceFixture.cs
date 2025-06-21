@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
+using Aspire.Hosting;
+using Aspire.Hosting.ApplicationModel;
+using Aspire.Hosting.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using TodoApi.Shared.Data;
 
@@ -13,40 +13,56 @@ public class SliceCollectionFixture : ICollectionFixture<SliceFixture> { }
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Handled in IAsyncLifetime")]
 public class SliceFixture : IAsyncLifetime
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly WebApplicationFactory<Program> _factory;
+    public DistributedApplication AppHost { get; private set; } = default!;
 
-    public SliceFixture()
+    public async Task InitializeAsync()
     {
-        _factory = new TestApplicationFactory();
-        _scopeFactory = _factory.Services.GetRequiredService<IServiceScopeFactory>();
-    }
+        var testAppBuilder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.TodoApi_AppHost>();
 
-    private sealed class TestApplicationFactory
-        : WebApplicationFactory<Program>
-    {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        testAppBuilder.Services.ConfigureHttpClientDefaults(clientBuilder =>
         {
-            builder.ConfigureAppConfiguration((_, configBuilder) =>
-                configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    { "ConnectionStrings:Default", "Server=(localdb)\\MSSQLLocalDB;Database=TodoApiTemplateIntegrationTests;Trusted_Connection=True;TrustServerCertificate=True;" },
-                    { "LocalMigrations", "false" }
-                }));
+            clientBuilder.AddStandardResilienceHandler();
+        });
+
+        var db = testAppBuilder.Resources.Where(r => r.Name == "todo-sql-server").FirstOrDefault();
+
+        if (db != null)
+        {
+            var containerLifetimeAnnotation = db.Annotations
+                .OfType<ContainerLifetimeAnnotation>()
+                .FirstOrDefault();
+
+            if (containerLifetimeAnnotation != null)
+            {
+                db.Annotations.Remove(containerLifetimeAnnotation);
+            }
+
+            var dataVolumeAnnotation = db.Annotations
+                .OfType<ContainerMountAnnotation>()
+                .FirstOrDefault();
+
+            if (dataVolumeAnnotation != null)
+            {
+                db.Annotations.Remove(dataVolumeAnnotation);
+            }
         }
+
+        AppHost = await testAppBuilder.BuildAsync();
+
+        await AppHost.StartAsync();
     }
 
-    public HttpClient Client => _factory.CreateClient();
+    public HttpClient Client => AppHost.CreateHttpClient("todo-api");
 
     public async Task ExecuteScopeAsync(Func<IServiceProvider, Task> action)
     {
-        using IServiceScope scope = _scopeFactory.CreateScope();
+        using IServiceScope scope = AppHost.Services.CreateScope();
         await action(scope.ServiceProvider);
     }
 
     public async Task<T> ExecuteScopeAsync<T>(Func<IServiceProvider, Task<T>> action)
     {
-        using IServiceScope scope = _scopeFactory.CreateScope();
+        using IServiceScope scope = AppHost.Services.CreateScope();
         return await action(scope.ServiceProvider);
     }
 
@@ -115,16 +131,18 @@ public class SliceFixture : IAsyncLifetime
         where T : class
         => ExecuteDbContextAsync(db => db.Set<T>().FindAsync(id).AsTask());
 
-    public async Task InitializeAsync()
-    {
-        await using var scope = _factory.Services.CreateAsyncScope();
-        var context = scope.ServiceProvider.GetRequiredService<TodoContext>();
-        await context.Database.EnsureDeletedAsync();
-        await context.Database.EnsureCreatedAsync();
-    }
-
     public async Task DisposeAsync()
     {
-        await _factory.DisposeAsync();
+        if (AppHost != null)
+        {
+            if (AppHost is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync();
+            }
+            else
+            {
+                AppHost.Dispose();
+            }
+        }
     }
 }

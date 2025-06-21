@@ -49,14 +49,26 @@ dotnet run --project src/TodoApi/TodoApi.csproj
 Note: When running directly, you'll need to ensure SQL Server is available and handle migrations manually.
 
 ### How to test
-To run all the tests, use the Text Explorer within Visual Studio 2022 17.8+ or the `dotnet` CLI:
+To run all the tests, use the Test Explorer within Visual Studio 2022 17.8+ or the `dotnet` CLI:
 ```
 dotnet test
 ```
 
 You may alternatively run the build script, `build.ps1`, which runs all the tests by default.
 
-Currently, there's one test project, `TodoApi.Tests`, where all the integration tests live. Integration tests are preferred as they will typically execute vertical slices or features against each other just as users would, mimicking the production scenarios very closely as the tests use actual dependency injection (DI) registrations, pipeline configuration, validation, real SQL Server DDL/DML, and so on.  
+#### Test Architecture
+The test project (`TodoApi.Tests`) uses .NET Aspire for integration testing, providing:
+- Real SQL Server instance managed by Aspire (no LocalDB required)
+- Automatic database provisioning and migration
+- Isolated test databases for each test run
+- Full integration testing with actual services
+
+Integration tests are preferred as they execute vertical slices or features against each other just as users would, mimicking production scenarios very closely. The tests use:
+- Actual dependency injection (DI) registrations
+- Real pipeline configuration
+- Full validation
+- Real SQL Server DDL/DML via Aspire-managed containers
+- The same migration service used in production
 
 This project may also contain unit tests for testing at a more granular level, if desired.
 

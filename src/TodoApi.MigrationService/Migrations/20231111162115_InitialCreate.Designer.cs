@@ -8,7 +8,7 @@ using TodoApi.Shared.Data;
 
 #nullable disable
 
-namespace TodoApi.Migrations
+namespace TodoApi.MigrationService.Migrations
 {
     [DbContext(typeof(TodoContext))]
     [Migration("20231111162115_InitialCreate")]

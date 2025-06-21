@@ -7,7 +7,7 @@ using TodoApi.Shared.Data;
 
 #nullable disable
 
-namespace TodoApi.Migrations
+namespace TodoApi.MigrationService.Migrations
 {
     [DbContext(typeof(TodoContext))]
     partial class TodoContextModelSnapshot : ModelSnapshot

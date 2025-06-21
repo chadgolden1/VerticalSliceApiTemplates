@@ -1,6 +1,5 @@
 using FastEndpoints;
 using FastEndpoints.Swagger;
-using Microsoft.EntityFrameworkCore;
 using TodoApi.Shared.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,14 +40,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerGen();
 }
 
-// Apply migrations when running in Aspire (detected by OTEL_SERVICE_NAME) or when LocalMigrations is true
-if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")) ||
-    app.Configuration.GetValue<bool>("LocalMigrations"))
-{
-    await using var scope = app.Services.CreateAsyncScope();
-    var context = scope.ServiceProvider.GetRequiredService<TodoContext>();
-    await context.Database.MigrateAsync();
-}
 
 app.Run();
 
